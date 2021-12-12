@@ -2,9 +2,8 @@
 Processing the data and prepare it for tabulation
 """
 import datetime
-from .api import ScaaAPI
+from .api_proto import ScaaAPI
 from typing import List
-
 
 class Core:
     def __init__(self, sport: str) -> None:

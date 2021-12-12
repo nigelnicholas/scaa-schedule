@@ -1,84 +1,83 @@
 """
-Defining the API to use and to retrieve information for SCAA schedule
+Defining API needed to retrieve information of SCAA schedule
 """
 
 import requests
 import datetime
-from typing import List
+from typing import List, Dict
 
-AVAILABILITY_REQUEST_URL = "https://member.scaa.org.hk/api/facility/clientGetFacilityBookingSummary"
-SPORT = ["badminton"]
+AVAILABLE_REQUEST_URL = "https://member.scaa.org.hk/api/facility/clientGetFacilityBookingSummary"
+SPORT = ["badminton"] # sports available
 FACILITIES_REQUEST_URL = "https://member.scaa.org.hk/api/facility/getWebFacilityTreeBySportType"
 BADMINTON_TYPE_ID = 7
 DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
-class ScaaAPI:
+def get_sport_facilities(sport:List[str] = None) -> Dict[str, List[int]]:
+    """Getting dictionary of sport and its facilities, if no sport specified take all
 
-    def _search_facility(self, data, sport="badminton"):
-        """Searching the JSON file information for speicic sport"""
-        if sport not in SPORT:
-            raise Exception("Sport not included yet.")
-        for facility in data:
-            if facility['nameEn'].lower() == sport:
-                return facility
+    Args:
+        sport (List[str]): list of sport names
+    Returns:
+        {"sport_name": [facility_ids]}
 
-    def load_facility_list(self, sport: str="badminton"):
-        """Load the IDs of sports court/facility
+    """
+    response = requests.post(FACILITIES_REQUEST_URL)
+    data = response.json()
+    sports_dict = {}
 
-        return IDs of facility
-        """
-        response = requests.post(FACILITIES_REQUEST_URL)
-        data = response.json()
+    for s in data["sportTypeList"]:
+        name = s["nameEn"].lower()
+        if sport and name not in sport:
+            continue
+        facility_ids = [i["id"] for i in s["facilityList"]]
+        sports_dict[name] = facility_ids
+    return sports_dict
 
-        # Data Processing
-        badminton_info = self._search_facility(data['sportTypeList'], sport)
-        facility_lists = badminton_info['facilityList']
-        facility_ids_list = [i['id'] for i in facility_lists]
-        return facility_ids_list
 
-    def facility_at_date(self, facilityID: List[int], date: datetime.datetime = None, in_advance: bool=False):
-        """Getting information of facility at current date (set default to 1 week from now)
+def load_facilities(sport: str="badminton") -> List[int]:
+    """Loading all IDS of facilities
 
-        Set in_advance TRUE if you want to look day+1 from date
-        """
-        date_chosen = date or datetime.datetime.today() + datetime.timedelta(days=7)
-        if in_advance:
-            date_chosen = date_chosen + datetime.timedelta(days=1)
+    Args:
+        sport (str): sport name
+    Returns:
+        List[int] list of facility ids
+    """
+    sports_dict = get_sport_facilities([sport])
+    return sports_dict[sport]
 
-        start_date = date_chosen.replace(hour=8, minute=0, second=0)
-        start_datetime = start_date.strftime(DATETIME_FMT)
 
-        end_date = date_chosen.replace(hour=22, minute=0, second=0)
-        end_datetime = end_date.strftime(DATETIME_FMT)
+def _process_json(data: Dict) -> Dict:
+    """Data processing to extract the facility's availability
 
-        data = {
-            "bookBy": "member",
-            "startDateTime": start_datetime,
-            "endDateTime": end_datetime,
-            "facilityIdList": facilityID,
-        }
-        response = requests.post(AVAILABILITY_REQUEST_URL, json=data)
-        return self._process_info(response.json()[0]["facilityBookingDailyTimeSlotDtoList"])
+    data contains facility's timeslot info for all
 
-    def _process_info(self, data):
-        """parses dictionary data to get the following information:
-        input: [{facilityId: ..., nameEn: ..., timeslotInfoList: []}, {facilityId: ..., nameEn: ..., ....}]
-        {
-            facility1: {
-                timeslot1: ...,
-                timeslot2: ...,
-                ...
-            },
-            facility2: {
-                timeslot1:...,
-                timeslot2:...,
-            }
-        }
-        """
-        result = {}
-        for facility in data:
-            name = facility["nameEn"]
-            result[name] = {}
-            for schedule in facility["timeslotInfoList"]:
-                result[name][schedule["startDateTime"]] = schedule["isFree"]
-        return result
+    Returns:
+        {facilityID: [True, False, True, ...]}
+    """
+    timeslot_data = {}
+    for facility in data:
+        timeslot_data[facility["facilityId"]] = [i["isFree"] for i in facility["timeslotInfoList"]]
+    return timeslot_data
+
+def facilities_at_date(facilityID: List[int], date: datetime.datetime, sport: str="badminton"):
+    """Show the facility's availability at certain date
+
+    Args:
+        date (datetime.datetime): target
+        sport (str): sport name
+    """
+    # 08:00 - 22:00
+    start_datetime = date.replace(hour=8, minute=0, second=0)
+    end_datetime = date.replace(hour=22, minute=0, second=0)
+
+    start_datetime_str = start_datetime.strftime(DATETIME_FMT)
+    end_datetime_str = end_datetime.strftime(DATETIME_FMT)
+
+    data = {
+        "bookBy": "member",
+        "startDateTime": start_datetime_str,
+        "endDateTime": end_datetime_str,
+        "facilityIdList": facilityID
+    }
+    response = requests.post(AVAILABLE_REQUEST_URL, json=data)
+    return _process_json(response.json()[0]["facilityBookingDailyTimeSlotDtoList"])
