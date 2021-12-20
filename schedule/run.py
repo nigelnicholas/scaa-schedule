@@ -1,8 +1,10 @@
 import datetime
 from schedule.api import load_facilities, facilities_at_date
+from .table import AvailabilityTable
 
 def run():
     data = load_facilities()
-    date = datetime.datetime(2021, 12, 21)
-    res = facilities_at_date([1, 2], date)
-    # TODO: build table with res, render the table
+    date = datetime.datetime(2021, 12, 28)
+    content, name = facilities_at_date(data, date)
+    table = AvailabilityTable.load(content, name, date)
+    table.tabulate()

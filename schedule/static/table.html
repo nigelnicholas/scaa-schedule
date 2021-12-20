@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{ date }}</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <style>
+            .unavailable {background-color: red;}
+            .available {background-color: green;}
+        </style>
+    </head>
+    <body>
+        <h1>{{ date.date() }}</h1>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                <th></th>
+                {% for time in times %}
+                    <th>{{ time }}</th>
+                {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+               {% for facility in facilities %}
+                <tr>
+                    {% for availability in facility %}
+                    <td class="{{ 'unavailable' if not availability else 'available' if availability == True }}">{{ availability if availability not in (True, False) }}</td>
+                    {% endfor %}
+                </tr>
+               {% endfor %}
+            </tbody>
+        </table>
+    </body>
+</html>

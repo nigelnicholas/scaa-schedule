@@ -4,7 +4,7 @@ Defining API needed to retrieve information of SCAA schedule
 
 import requests
 import datetime
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 AVAILABLE_REQUEST_URL = "https://member.scaa.org.hk/api/facility/clientGetFacilityBookingSummary"
 SPORT = ["badminton"] # sports available
@@ -52,12 +52,14 @@ def _process_json(data: Dict) -> Dict:
     data contains facility's timeslot info for all
 
     Returns:
-        {facilityID: [True, False, True, ...]}
+        {facilityID: [True, False, True, ...]}, {facilityID: "nameEn"}
     """
     timeslot_data = {}
+    name_en_map = {} # map facilityID to name
     for facility in data:
+        name_en_map[facility["facilityId"]] = facility["nameEn"]
         timeslot_data[facility["facilityId"]] = [i["isFree"] for i in facility["timeslotInfoList"]]
-    return timeslot_data
+    return timeslot_data, name_en_map
 
 def facilities_at_date(facilityID: List[int], date: datetime.datetime, sport: str="badminton"):
     """Show the facility's availability at certain date
